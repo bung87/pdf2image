@@ -1,6 +1,7 @@
-import std/[os, strutils, nre]
+import std/[os, strutils, nre, osproc]
 from pkg/filetype import nil
 import struct
+import nimtesseract
 
 # filter:
 # https://blog.didierstevens.com/2008/05/19/pdf-stream-objects/
@@ -52,5 +53,14 @@ proc extractImages*(filePath: string; outDir: string) =
     inc i
 
 when isMainModule:
-  let path =  "/Users/bung//Documents/赫伯特·马尔库塞 - 爱欲与文明.pdf"
-  extractImages(path, "tmp")
+  let path = "/Users/bung/Documents/赫伯特·马尔库塞 - 爱欲与文明.pdf"
+  let datapath = "/usr/local/Cellar/tesseract/4.1.1/share/tessdata/"
+  let tmpDir = getCurrentDir() / "tmp"
+  extractImages(path, tmpDir)
+  var file = open("output.txt",fmAppend)
+  for f in walkDir(tmpDir):
+    if f.kind == pcFile:
+      # echo imageToText(f.path, "chi_sim", datapath)
+      let txt = execProcess("tesseract", args=[f.path, "stdout", "-l", "chi_sim","--tessdata-dir", datapath], options={poUsePath})
+      file.write txt
+  file.close

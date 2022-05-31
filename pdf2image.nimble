@@ -14,3 +14,4 @@ bin           = @["pdf2image"]
 requires "nim >= 1.0.0"
 requires "struct"
 requires "filetype"
+requires "nimtesseract"
