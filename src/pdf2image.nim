@@ -36,9 +36,10 @@ proc extractImages*(filePath: string; outDir: string) =
     k:int
     ccittGroup:int
     header: string
-  for m in findIter(content, re"/(?msU)Filter(.*)stream\r\n(.*)\r\nendstream"):
+  for m in findIter(content, re"(?msU)/Filter(.*)\n?stream(?:\r?\n)(.*)(?:\r?\n)endstream(?:\n)?"):
     if "/CCITTFaxDecode" in m.captures[0]:
-      let p = m.captures[0].find(re"/CCITTFaxDecode/ImageMask true/BitsPerComponent 1/Width (?<width>\d+)/DecodeParms<</K (?<k>-?\d+)/Columns 800>>/Height (?<height>\d+)/")
+      let p = m.captures[0].find(re"/CCITTFaxDecode/ImageMask true/BitsPerComponent 1/Width (?<width>\d+)/DecodeParms<</K (?<k>-?\d+)/Columns (?:\d+)>>/Height (?<height>\d+)/")
+      let d = m.captures[0].find(re"/CCITTFaxDecode/DecodeParms<</K (?<k>-?\d+)/Columns (?:\d+)>>/Width (?<width>\d+)/Height (?<height>\d+)/BitsPerComponent 1/ImageMask true/")
       if p.isSome:
         width = parseInt p.get.captures["width"]
         height = parseInt p.get.captures["height"]
@@ -46,14 +47,33 @@ proc extractImages*(filePath: string; outDir: string) =
         ccittGroup = if k == -1: 4 else: 3
         header = tiffHeaderForCCITT(width,height, m.captures[1].len, ccittGroup )
         writeFile(outDir / $i & ".tiff", header & m.captures[1] )
+      elif d.isSome:
+        width = parseInt d.get.captures["width"]
+        height = parseInt d.get.captures["height"]
+        k = parseInt d.get.captures["k"]
+        ccittGroup = if k == -1: 4 else: 3
+        header = tiffHeaderForCCITT(width,height, m.captures[1].len, ccittGroup )
+        writeFile(outDir / $i & ".tiff", header & m.captures[1] )
+      else: 
+        # echo "not CCITTFaxDecode"
+        # echo m.captures[0]
+        discard
+    elif "/JBIG2Decode" in m.captures[0]:
+      # let h = @[0x97, 0x4A, 0x42, 0x32, 0x0D, 0x0A, 0x1A, 0x0A]
+      # writeFile(outDir / $i & ".jbig", cast[string](h) & m.captures[1] )
+      discard
     else:
       let ft = filetype.match(toOpenArrayByte(m.captures[1], 0, m.captures[1].len - 1))
       if ft.extension.len > 0:
         writeFile(outDir / $i & "." & ft.extension, m.captures[1] )
+      else:
+        # echo "no ext"
+        # echo repr m.captures[0]
+        discard
     inc i
 
 when isMainModule:
-  let path = "/Users/bung/Documents/赫伯特·马尔库塞 - 爱欲与文明.pdf"
+  let path = "/Users/bung/Documents/阿尔都塞 - 意识形态和意识形态国家机器.pdf"
   let datapath = "/usr/local/Cellar/tesseract/4.1.1/share/tessdata/"
   let tmpDir = getCurrentDir() / "tmp"
   extractImages(path, tmpDir)
